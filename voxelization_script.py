@@ -291,16 +291,12 @@ def pytorch_mesh_to_voxels(mesh_path: str, resolution: int = 32,
     
     return final_grid
 
+
+
 def plot_all_height_slices(voxels: np.ndarray, title: str = "Voxel Grid", 
                           max_cols: int = 8, save_path: str = None):
     """
     Plot 2D slices for every height level (Y-axis) from y=0 to y=height
-    
-    Args:
-        voxels: 3D boolean array of voxels
-        title: Title for the plot
-        max_cols: Maximum number of columns in the subplot grid
-        save_path: Optional path to save the plot
     """
     height = voxels.shape[1]  # Y dimension
     
@@ -312,7 +308,7 @@ def plot_all_height_slices(voxels: np.ndarray, title: str = "Voxel Grid",
     
     if not non_empty_slices:
         print("[WARNING] No occupied voxels found in any height slice")
-        return
+        return None
     
     print(f"[INFO] Plotting {len(non_empty_slices)} non-empty height slices out of {height} total")
     
@@ -324,105 +320,16 @@ def plot_all_height_slices(voxels: np.ndarray, title: str = "Voxel Grid",
     # Create figure with appropriate size
     fig_width = min(20, n_cols * 2.5)
     fig_height = min(24, n_rows * 2.5)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
-    fig.suptitle(f'{title} - Height Slices (Y=0 to Y={height-1})', fontsize=16)
     
-    # Handle single subplot case
-    if n_slices == 1:
-        axes = [axes]
-    elif n_rows == 1:
-        axes = [axes] if n_cols == 1 else axes
-    else:
-        axes = axes.flatten()
-    
-    # Plot each non-empty slice
-    for idx, y in enumerate(non_empty_slices):
-        ax = axes[idx]
+    try:
+        import matplotlib
+        matplotlib.use('Agg')  # Use non-interactive backend
+        import matplotlib.pyplot as plt
         
-        # Get XZ slice at height y
-        slice_data = voxels[:, y, :]  # Shape: (X, Z)
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
+        fig.suptitle(f'{title} - Height Slices (Y=0 to Y={height-1})', fontsize=16)
         
-        # Plot the slice
-        im = ax.imshow(slice_data.T, origin='lower', cmap='Blues', 
-                      interpolation='nearest', aspect='equal')
-        
-        # Add colorbar for the first few plots
-        if idx < 3:
-            plt.colorbar(im, ax=ax, shrink=0.6)
-        
-        ax.set_title(f'Y={y} ({slice_data.sum()} voxels)')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Z')
-        
-        # Add grid for better visualization
-        ax.grid(True, alpha=0.3)
-        
-        # Set ticks to show voxel indices
-        x_ticks = np.arange(0, slice_data.shape[0], max(1, slice_data.shape[0]//5))
-        z_ticks = np.arange(0, slice_data.shape[1], max(1, slice_data.shape[1]//5))
-        ax.set_xticks(x_ticks)
-        ax.set_yticks(z_ticks)
-    
-    # Hide unused subplots
-    for idx in range(len(non_empty_slices), len(axes)):
-        axes[idx].set_visible(False)
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"[INFO] Height slices saved to: {save_path}")
-    
-    plt.show()
-
-def plot_height_slices_detailed(voxels: np.ndarray, title: str = "Voxel Grid",
-                               step: int = 1, height_range: tuple = None):
-    """
-    Plot detailed height slices with more information and customization
-    
-    Args:
-        voxels: 3D boolean array of voxels
-        title: Title for the plot
-        step: Step size for height slices (e.g., step=2 plots every other slice)
-        height_range: Tuple (start, end) to plot only specific height range
-    """
-    height = voxels.shape[1]
-    
-    # Determine height range
-    if height_range is None:
-        start_y, end_y = 0, height
-    else:
-        start_y, end_y = height_range
-        start_y = max(0, start_y)
-        end_y = min(height, end_y)
-    
-    # Get slice indices with step
-    slice_indices = list(range(start_y, end_y, step))
-    
-    # Filter non-empty slices
-    non_empty_data = []
-    for y in slice_indices:
-        slice_data = voxels[:, y, :]
-        if slice_data.sum() > 0:
-            non_empty_data.append((y, slice_data))
-    
-    if not non_empty_data:
-        print(f"[WARNING] No occupied voxels in height range {start_y}-{end_y}")
-        return
-    
-    print(f"[INFO] Plotting {len(non_empty_data)} height slices from Y={start_y} to Y={end_y-1}")
-    
-    # Create animation-like sequence of plots
-    n_slices = len(non_empty_data)
-    
-    # For many slices, create a grid view
-    if n_slices <= 20:
-        n_cols = min(5, n_slices)
-        n_rows = (n_slices + n_cols - 1) // n_cols
-        
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 3*n_rows))
-        fig.suptitle(f'{title} - Detailed Height Analysis', fontsize=16)
-        
+        # Handle single subplot case
         if n_slices == 1:
             axes = [axes]
         elif n_rows == 1:
@@ -430,34 +337,70 @@ def plot_height_slices_detailed(voxels: np.ndarray, title: str = "Voxel Grid",
         else:
             axes = axes.flatten()
         
-        for idx, (y, slice_data) in enumerate(non_empty_data):
+        # Plot each non-empty slice
+        for idx, y in enumerate(non_empty_slices):
             ax = axes[idx]
             
-            im = ax.imshow(slice_data.T, origin='lower', cmap='viridis',
+            # Get XZ slice at height y
+            slice_data = voxels[:, y, :]  # Shape: (X, Z)
+            
+            # Plot the slice
+            im = ax.imshow(slice_data.T, origin='lower', cmap='Blues', 
                           interpolation='nearest', aspect='equal')
             
-            # Statistics
-            occupied = slice_data.sum()
-            total = slice_data.size
-            fill_ratio = occupied / total * 100
-            
-            ax.set_title(f'Y={y}\n{occupied}/{total} voxels\n({fill_ratio:.1f}%)')
+            ax.set_title(f'Y={y} ({slice_data.sum()} voxels)')
             ax.set_xlabel('X')
             ax.set_ylabel('Z')
             
-            # Add colorbar
-            plt.colorbar(im, ax=ax, shrink=0.8)
+            # Add grid for better visualization
+            ax.grid(True, alpha=0.3)
         
         # Hide unused subplots
-        for idx in range(len(non_empty_data), len(axes)):
+        for idx in range(len(non_empty_slices), len(axes)):
             axes[idx].set_visible(False)
         
         plt.tight_layout()
-        plt.show()
-    
-    else:
-        # For many slices, create a summary view
-        print(f"[INFO] Too many slices ({n_slices}), creating summary view")
+        
+        # Save to numpy array
+        import io
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+        buf.seek(0)
+        plt.close()
+        
+        # Convert to numpy array
+        import PIL.Image
+        img = PIL.Image.open(buf)
+        return np.array(img)
+        
+    except Exception as e:
+        print(f"Error creating height slices plot: {e}")
+        return None
+
+
+def plot_height_slices_detailed(voxels: np.ndarray, title: str = "Voxel Grid"):
+    """
+    Plot detailed height slices with analysis
+    """
+    try:
+        import matplotlib
+        matplotlib.use('Agg')  # Use non-interactive backend
+        import matplotlib.pyplot as plt
+        
+        height = voxels.shape[1]
+        
+        # Get non-empty slices
+        non_empty_data = []
+        for y in range(height):
+            slice_data = voxels[:, y, :]
+            if slice_data.sum() > 0:
+                non_empty_data.append((y, slice_data))
+        
+        if not non_empty_data:
+            print(f"[WARNING] No occupied voxels found")
+            return None
+        
+        print(f"[INFO] Creating detailed analysis for {len(non_empty_data)} height slices")
         
         # Create summary statistics
         heights = [y for y, _ in non_empty_data]
@@ -472,21 +415,32 @@ def plot_height_slices_detailed(voxels: np.ndarray, title: str = "Voxel Grid",
         ax1.set_title('Voxel Count vs Height')
         ax1.grid(True, alpha=0.3)
         
-        # Plot a few representative slices
-        sample_indices = np.linspace(0, len(non_empty_data)-1, min(6, len(non_empty_data))).astype(int)
-        
-        for i, idx in enumerate(sample_indices):
-            y, slice_data = non_empty_data[idx]
-            
-            # Create subplot in the right panel
-            ax_sub = plt.subplot(2, 3, i+1)
-            ax_sub.imshow(slice_data.T, origin='lower', cmap='Blues')
-            ax_sub.set_title(f'Y={y}')
-            ax_sub.set_xticks([])
-            ax_sub.set_yticks([])
+        # Plot center slice
+        center_y = height // 2
+        center_slice = voxels[:, center_y, :]
+        im = ax2.imshow(center_slice.T, origin='lower', cmap='viridis')
+        ax2.set_title(f'Center Slice (Y={center_y})')
+        ax2.set_xlabel('X')
+        ax2.set_ylabel('Z')
+        plt.colorbar(im, ax=ax2)
         
         plt.tight_layout()
-        plt.show()
+        
+        # Save to numpy array
+        import io
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+        buf.seek(0)
+        plt.close()
+        
+        # Convert to numpy array
+        import PIL.Image
+        img = PIL.Image.open(buf)
+        return np.array(img)
+        
+    except Exception as e:
+        print(f"Error creating detailed plot: {e}")
+        return None
 
 def create_height_animation_frames(voxels: np.ndarray, output_dir: str = "height_frames"):
     """
