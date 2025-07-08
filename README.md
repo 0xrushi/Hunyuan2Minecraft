@@ -39,4 +39,5 @@ Inspired by projects like ![Claude building the Eiffel Tower (poorly 😬)](http
 ## ToDO 
 
 [ ] Implement cluster detection unsupervised algorithm to automatically detect colors for generated textures
+
 [ ] Develop an algorithm to convert the color hues to minecraft blocks like orange = pumpkin block
