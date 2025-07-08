@@ -4,7 +4,7 @@ Turn stunning real-world or AI-generated images into Minecraft builds — powere
 
 ## 🎥 Demo (click the image)
 
-[![Watch the Demo Video](https://github.com/user-attachments/assets/51702fa5-feee-41c5-9100-948e25c3bff5)](https://odysee.com/@rushi:2/eiffiel-tower-hunyuan2.1:9)
+[![Watch the Demo Video](https://github.com/user-attachments/assets/51702fa5-feee-41c5-9100-948e25c3bff5)](https://www.youtube.com/watch?v=d4WiroXOokU)
 > Click to watch the Eiffel Tower built in Minecraft using an image and Hunyuan's imagination.
 
 ---
