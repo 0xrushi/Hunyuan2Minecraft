@@ -474,7 +474,7 @@ def shape_generation(
 
 
 def build_app():
-    title = 'Hunyuan3D-2: High Resolution Textured 3D Assets Generation'
+    title = 'Hunyuan2Minecraft: Textured 3d assets generation to minecraft'
     if MV_MODE:
         title = 'Hunyuan3D-2mv: Image to 3D Generation with 1-4 Views'
     if 'mini' in args.subfolder:
@@ -605,7 +605,7 @@ def build_app():
                                                       value=False, min_width=100)
                             export_texture = gr.Checkbox(label='Include Texture', value=False,
                                                          visible=False, min_width=100)
-                        target_face_num = gr.Slider(maximum=1000000, minimum=100, value=10000,
+                        target_face_num = gr.Slider(minimum=10000, maximum=10000000, value=100000,
                                                     label='Target Face Number')
                         with gr.Row():
                             confirm_export = gr.Button(value="Transform", min_width=100)
@@ -621,7 +621,6 @@ def build_app():
                     with gr.Tab('Mesh Statistic', id='stats_panel'):
                         stats = gr.Json({}, label='Mesh Stats')
                     with gr.Tab('Voxelization', id='voxelization_panel', visible=VOXELIZATION_AVAILABLE):
-                        pyvista_status = "✅ Available (External Viewer + High-Quality 3D)" if PYVISTA_AVAILABLE else "❌ Not Available (Basic 3D only)"
                         gr.HTML(f"""
                         <div style="background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
                         <h4>🎯 Voxelization Tool</h4>
@@ -635,33 +634,22 @@ def build_app():
                             <li><strong>Height Slices:</strong> 2D cross-sections at different heights</li>
                             <li><strong>Detailed Analysis:</strong> Voxel count distribution and center slice visualization</li>
                             <li><strong>High-Quality 3D Plot:</strong> PyVista-powered visualization with rotation controls</li>
-                            <li><strong>🚀 External Viewer:</strong> Launch PyVista in separate window with full mouse interactivity</li>
-                            <li><strong>🎮 Minecraft Building:</strong> Build your voxels in Minecraft layer by layer!</li>
+                            <li><strong>External Viewer:</strong> Launch PyVista in separate window with full mouse interactivity</li>
+                            <li><strong>Minecraft Building:</strong> Build your voxels in Minecraft layer by layer!</li>
                             <li><strong>Statistics:</strong> Resolution, occupied voxels, and fill ratio</li>
                         </ul>
-                        <p><em>PyVista Status: {pyvista_status}</em></p>
                         <p><em>💡 Tip: Use the External Viewer for the best interactive experience!</em></p>
                         <p><em>Note: Requires PyTorch and GPU for optimal performance.</em></p>
                         </div>
                         """)
                         
-                        # Status indicator
-                        status_color = "#4CAF50" if VOXELIZATION_AVAILABLE else "#f44336"
-                        status_text = "✅ Available" if VOXELIZATION_AVAILABLE else "❌ Not Available"
                         gr.HTML(f"""
                         <div style="background-color: {status_color}; color: white; padding: 5px 10px; border-radius: 3px; margin-bottom: 10px; text-align: center;">
                         <strong>Voxelization Status: {status_text}</strong>
                         </div>
                         """)
                         
-                        # Minecraft building status indicator
-                        minecraft_status_color = "#4CAF50" if MINECRAFT_AVAILABLE else "#f44336"
-                        minecraft_status_text = "✅ Available" if MINECRAFT_AVAILABLE else "❌ Not Available"
-                        gr.HTML(f"""
-                        <div style="background-color: {minecraft_status_color}; color: white; padding: 5px 10px; border-radius: 3px; margin-bottom: 10px; text-align: center;">
-                        <strong>Minecraft Building Status: {minecraft_status_text}</strong>
-                        </div>
-                        """)
+
                         with gr.Row():
                             with gr.Column(scale=1):
                                 # Optional mesh file upload
@@ -766,14 +754,7 @@ def build_app():
                                 # Interactive PyVista plot (when available)
                                 voxel_interactive_plot = gr.HTML(label='Interactive 3D Voxel Plot', visible=False)
                                 # Fallback matplotlib plot  
-                                voxel_3d_plot = gr.Image(label='3D Voxel Visualization (Static)', visible=False)
-                                # Download interactive HTML file
-                                download_html_btn = gr.DownloadButton(
-                                    label="📁 Download Interactive HTML", 
-                                    variant="secondary", 
-                                    visible=False,
-                                    size="sm"
-                                )
+                                voxel_3d_plot = gr.Image(label='3D Voxel Visualization (Static)', visible=False)                                
                                 # External PyVista viewer button
                                 external_viewer_btn = gr.Button(
                                     "🚀 Launch External Viewer",
@@ -993,7 +974,7 @@ def build_app():
         ).then(
             on_voxelize_click,
             inputs=[mesh_file_upload, file_export, voxel_resolution, voxel_method, use_gpu_voxel],
-            outputs=[voxel_stats, height_slices_plot, detailed_plot, voxel_interactive_plot, voxel_3d_plot, download_html_btn, external_viewer_btn, external_viewer_status, current_voxels, voxel_plane_controls, voxel_plane_buttons]
+            outputs=[voxel_stats, height_slices_plot, detailed_plot, voxel_interactive_plot, voxel_3d_plot, external_viewer_btn, external_viewer_status, current_voxels, voxel_plane_controls, voxel_plane_buttons]
         )
         
         # Plane view button event handlers
@@ -1066,7 +1047,7 @@ def build_app():
                 return gr.update(value="❌ No occupied voxels found in the data.", visible=True)
             
             total_blocks = total_voxels * (scale ** 3)
-            if total_blocks > 10000:
+            if total_blocks > 10000000:
                 return gr.update(
                     value=f"❌ Too many blocks ({total_blocks:,}). Maximum recommended: 10,000.\n"
                         f"Try reducing scale (current: {scale}) or voxel resolution.\n"

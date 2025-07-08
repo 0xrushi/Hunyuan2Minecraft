@@ -278,7 +278,7 @@ def pytorch_voxelize_solid_fill(vertices, faces, resolution, device='cuda'):
     print(f"[INFO] Ray casting for {voxel_centers.shape[0]} voxels...")
     
     # Process voxels in batches
-    voxel_batch_size = 10000
+    voxel_batch_size = 10000000
     
     for batch_start in range(0, voxel_centers.shape[0], voxel_batch_size):
         batch_end = min(batch_start + voxel_batch_size, voxel_centers.shape[0])
@@ -1345,17 +1345,35 @@ def build_voxels_in_minecraft_fixed(voxels, scale=1, block_type='STONE', delay=0
         except Exception as chat_error:
             print(f"[WARNING] Failed to post chat message: {chat_error}")
         
-        # Origin point (player position)
-        origin = (float(pos.x), float(pos.y), float(pos.z))
+        # Find ground level below player for proper building base
+        ground_y = float(pos.y)
+        try:
+            # Look for the highest solid block below the player (within 10 blocks)
+            for check_y in range(int(pos.y), int(pos.y) - 10, -1):
+                block_below = mc.getBlock(int(pos.x), check_y - 1, int(pos.z))
+                if block_below != 0:  # Not air
+                    ground_y = float(check_y)
+                    print(f"[MINECRAFT] Found ground level at Y={ground_y}")
+                    break
+            else:
+                # If no ground found, use player position
+                ground_y = float(pos.y)
+                print(f"[MINECRAFT] No ground found, using player Y={ground_y}")
+        except Exception as ground_error:
+            print(f"[WARNING] Could not detect ground level: {ground_error}, using player position")
+            ground_y = float(pos.y)
+        
+        # Origin point (player position with corrected ground level)
+        origin = (float(pos.x), ground_y, float(pos.z))
         forward = (float(fx), 0.0, float(fz))
         
         # Coordinate transformation function
         def local_to_world(origin, forward, lx, ly, lz):
             ox, oy, oz = origin
             fx, _, fz = forward
-            wx = ox + lx * fz + ly * fx
-            wy = oy + lz
-            wz = oz + lx * -fx + ly * fz
+            wx = ox + lx * fz + lz * fx
+            wy = oy + ly  # FIXED: Use ly (height) instead of lz (depth)
+            wz = oz + lx * -fx + lz * fz
             return int(round(wx)), int(round(wy)), int(round(wz))
         
         # Get block type safely
@@ -1377,6 +1395,8 @@ def build_voxels_in_minecraft_fixed(voxels, scale=1, block_type='STONE', delay=0
         
         try:
             mc.postToChat(f"Starting build: {total_voxels} voxels, {total_blocks_scaled} blocks total")
+            mc.postToChat(f"Origin: X={origin[0]:.1f}, Y={origin[1]:.1f}, Z={origin[2]:.1f}")
+            mc.postToChat(f"Building upward from ground level Y={origin[1]:.1f}")
         except:
             pass
         
@@ -1397,7 +1417,7 @@ def build_voxels_in_minecraft_fixed(voxels, scale=1, block_type='STONE', delay=0
                                 for sz in range(scale):
                                     # Calculate local coordinates (centered)
                                     lx = (x - offset_x) * scale + sx
-                                    ly = y * scale + sy + 1  # Start 1 block above ground
+                                    ly = y * scale + sy + 2  # Start 2 blocks above ground for clearance
                                     lz = (z - offset_z) * scale + sz
                                     
                                     # Convert to world coordinates
@@ -1493,7 +1513,7 @@ def build_voxels_in_minecraft_robust(voxels, scale=1, block_type='STONE', delay=
     result = build_voxels_in_minecraft_fixed(
         oriented_voxels, scale, block_type, delay, 
         max_blocks_per_batch=50, 
-        max_total_blocks=8000
+        max_total_blocks=900000
     )
     
     # If it failed, return the error
