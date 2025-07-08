@@ -6,7 +6,7 @@ Turn stunning real-world or AI-generated images into Minecraft builds — powere
 
 ## 🎥 Demo
 
-[![Watch the Demo Video](https://i.imgur.com/XYZ1234.jpg)](https://odysee.com/@rushi:2/eiffiel-tower-hunyuan2.1:9)
+[![Watch the Demo Video](https://github.com/user-attachments/assets/51702fa5-feee-41c5-9100-948e25c3bff5)](https://odysee.com/@rushi:2/eiffiel-tower-hunyuan2.1:9)
 > Click to watch the Eiffel Tower built in Minecraft using an image and Hunyuan's imagination.
 
 ---
@@ -15,7 +15,9 @@ Turn stunning real-world or AI-generated images into Minecraft builds — powere
 
 Minecraft agents are getting better at chopping trees and mining but when it comes to building **realistic**, **beautiful**, and **creative** structures, they fail.
 
-Inspired by projects like Claude building the Eiffel Tower (poorly 😬), this project bridges the gap between **vision models** and **blocky reality**.
+Inspired by projects like ![Claude building the Eiffel Tower (poorly 😬)](https://www.reddit.com/r/mcp/comments/1jgicku/claudes_building_the_eiffel_tower_in_realtime/), this project bridges the gap between **vision models** and **blocky reality**.
+![Screenshot 2025-07-08 044704](https://github.com/user-attachments/assets/be7f1b4b-6659-4d13-a753-7cdf7ea715c1)
+
 
 ---
 
