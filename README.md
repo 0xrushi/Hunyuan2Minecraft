@@ -1,10 +1,8 @@
 # 🗼 Hunyuan2Minecraft: Build Beautiful Structures in Minecraft Using Images + AI
 
-![Hunyuan2Minecraft Demo Banner](https://i.imgur.com/abcd123.png)
-
 Turn stunning real-world or AI-generated images into Minecraft builds — powered by [Hunyuan 2.1](https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/) and voxel conversion pipelines.
 
-## 🎥 Demo
+## 🎥 Demo (click the image)
 
 [![Watch the Demo Video](https://github.com/user-attachments/assets/51702fa5-feee-41c5-9100-948e25c3bff5)](https://odysee.com/@rushi:2/eiffiel-tower-hunyuan2.1:9)
 > Click to watch the Eiffel Tower built in Minecraft using an image and Hunyuan's imagination.
