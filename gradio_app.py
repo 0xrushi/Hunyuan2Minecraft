@@ -50,17 +50,16 @@ import PIL.Image
 # Import voxelization utilities
 try:
     from voxel_utils import (
-        VOXELIZATION_AVAILABLE, PYVISTA_AVAILABLE, MINECRAFT_AVAILABLE,
+        PYVISTA_AVAILABLE, MINECRAFT_AVAILABLE,
         TORCH_VOXEL_AVAILABLE, voxel_device,
         voxelize_mesh, create_pyvista_voxel_plot,
-        create_standalone_html_voxel_plot, get_plane_view, reorient_voxels_for_plane,
+        create_standalone_html_voxel_plot, get_plane_view, get_height_slices_for_plane, reorient_voxels_for_plane,
         launch_external_voxel_viewer, build_voxels_in_minecraft_robust,
         save_voxel_matrix_to_txt
     )
     print("[INFO] Voxel utilities imported successfully")
 except ImportError as e:
     print(f"[WARNING] Failed to import voxel utilities: {e}")
-    VOXELIZATION_AVAILABLE = False
     PYVISTA_AVAILABLE = False
     MINECRAFT_AVAILABLE = False
     TORCH_VOXEL_AVAILABLE = False
@@ -620,7 +619,7 @@ def build_app():
                         html_export_mesh = gr.HTML(HTML_OUTPUT_PLACEHOLDER, label='Output')
                     with gr.Tab('Mesh Statistic', id='stats_panel'):
                         stats = gr.Json({}, label='Mesh Stats')
-                    with gr.Tab('Voxelization', id='voxelization_panel', visible=VOXELIZATION_AVAILABLE):
+                    with gr.Tab('Voxelization', id='voxelization_panel', visible=True):
                         gr.HTML(f"""
                         <div style="background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
                         <h4>🎯 Voxelization Tool</h4>
@@ -644,8 +643,8 @@ def build_app():
                         """)
                         
                         gr.HTML(f"""
-                        <div style="background-color: {status_color}; color: white; padding: 5px 10px; border-radius: 3px; margin-bottom: 10px; text-align: center;">
-                        <strong>Voxelization Status: {status_text}</strong>
+                        <div style="background-color: green; color: white; padding: 5px 10px; border-radius: 3px; margin-bottom: 10px; text-align: center;">
+                        <strong>Voxelization Status: Available</strong>
                         </div>
                         """)
                         
@@ -692,13 +691,8 @@ def build_app():
                                 </div>
                                 """)
                                 use_gpu_voxel = gr.Checkbox(
-                                    value=True, label='Use GPU'
+                                    value=True, label='Use GPU', visible=False
                                 )
-                                gr.HTML("""
-                                <div style="font-size: 11px; color: #666; margin-top: -10px; margin-bottom: 10px;">
-                                <em>Use GPU acceleration if available</em>
-                                </div>
-                                """)
                                 voxelize_btn = gr.Button('Generate Voxels', variant='primary')
                                 
                                 # Minecraft building controls
@@ -741,12 +735,12 @@ def build_app():
                                 voxel_stats = gr.Json({}, label='Voxel Statistics')
                                 minecraft_build_status = gr.Textbox(
                                     label="Minecraft Build Status",
-                                    visible=False,
+                                    visible=True,
                                     interactive=False
                                 )
                         
                         with gr.Row():
-                            height_slices_plot = gr.Image(label='Height Slices Visualization', visible=False)
+                            height_slices_plot = gr.Image(label='Height Slices Visualization', visible=True)
                             detailed_plot = gr.Image(label='Detailed Analysis', visible=False)
                         
                         with gr.Row():
@@ -754,23 +748,23 @@ def build_app():
                                 # Interactive PyVista plot (when available)
                                 voxel_interactive_plot = gr.HTML(label='Interactive 3D Voxel Plot', visible=False)
                                 # Fallback matplotlib plot  
-                                voxel_3d_plot = gr.Image(label='3D Voxel Visualization (Static)', visible=False)                                
+                                voxel_3d_plot = gr.Image(label='3D Voxel Visualization (Static)', visible=True)                                
                                 # External PyVista viewer button
                                 external_viewer_btn = gr.Button(
                                     "🚀 Launch External Viewer",
                                     variant="primary",
-                                    visible=False,
+                                    visible=True,
                                     size="sm"
                                 )
                                 # Status display for external viewer
                                 external_viewer_status = gr.Textbox(
                                     label="External Viewer Status",
-                                    visible=False,
+                                    visible=True,
                                     interactive=False
                                 )
                         
                         # Plane view controls for voxel visualization
-                        with gr.Row(visible=False) as voxel_plane_controls:
+                        with gr.Row() as voxel_plane_controls:
                             gr.HTML("""
                             <div style="text-align: center; margin: 10px 0;">
                             <strong>📐 Plane Views</strong><br>
@@ -778,10 +772,10 @@ def build_app():
                             </div>
                             """)
                         
-                        with gr.Row(visible=False) as voxel_plane_buttons:
-                            plane_xy_btn = gr.Button("📋 XY Plane (Top)", size="sm", variant="secondary")
-                            plane_yz_btn = gr.Button("📋 YZ Plane (Side)", size="sm", variant="secondary") 
-                            plane_xz_btn = gr.Button("📋 XZ Plane (Front)", size="sm", variant="primary")
+                        with gr.Row() as voxel_plane_buttons:
+                            plane_xy_btn = gr.Button("📋 XY Plane (Top)", size="sm", variant="secondary", visible=True)
+                            plane_yz_btn = gr.Button("📋 YZ Plane (Side)", size="sm", variant="secondary", visible=True) 
+                            plane_xz_btn = gr.Button("📋 XZ Plane (Front)", size="sm", variant="primary", visible=True)
                         
                         # Hidden states to store current voxel data and selected plane
                         current_voxels = gr.State(None)
@@ -927,46 +921,69 @@ def build_app():
             # Use uploaded mesh file if provided, otherwise use exported mesh
             if mesh_file_upload is not None:
                 mesh_path = mesh_file_upload.name
-                print(f'Voxelizing uploaded mesh: {mesh_path}')
+                print(f'[GRADIO] Voxelizing uploaded mesh: {mesh_path}')
             elif file_export is not None:
                 mesh_path = file_export
-                print(f'Voxelizing exported mesh: {mesh_path}')
+                print(f'[GRADIO] Voxelizing exported mesh: {mesh_path}')
             else:
                 raise gr.Error('Please either upload a mesh file or export a mesh first using the "Export" tab.')
             
-            stats, height_plot, detailed_plot, voxel_3d_plot, voxels, voxel_html_path = voxelize_mesh(mesh_path, resolution, method, use_gpu)
+            # Check if mesh file exists
+            if not os.path.exists(mesh_path):
+                raise gr.Error(f'Mesh file not found: {mesh_path}')
             
-            # Update visibility of plots
-            height_visible = height_plot is not None
-            detailed_visible = detailed_plot is not None
-            voxel_3d_visible = voxel_3d_plot is not None
+            print(f'[GRADIO] Starting voxelization with resolution={resolution}, method={method}')
             
-            # No interactive HTML plot - just static visualization with rotation controls
-            interactive_plot_html = ""
-            interactive_visible = False
-            
-            # Show plane controls for static plots (both PyVista and matplotlib)
-            plane_controls_visible = voxels is not None and voxel_3d_plot is not None
-            
-            # Show download button if HTML file is available
-            download_visible = voxel_html_path is not None
-            
-            # Show external viewer button if PyVista is available and we have voxels
-            external_viewer_visible = PYVISTA_AVAILABLE and voxels is not None
-            
-            return (
-                stats,
-                gr.update(value=height_plot, visible=height_visible),
-                gr.update(value=detailed_plot, visible=detailed_visible),
-                gr.update(value=interactive_plot_html, visible=interactive_visible),  # Interactive plot
-                gr.update(value=voxel_3d_plot, visible=voxel_3d_visible and not interactive_visible),  # Static plot
-                gr.update(value=voxel_html_path, visible=download_visible),  # Download button
-                gr.update(visible=external_viewer_visible),  # External viewer button
-                gr.update(visible=False, value=""),  # Reset external viewer status
-                voxels,  # Store voxel data in state
-                gr.update(visible=plane_controls_visible),  # Show plane controls 
-                gr.update(visible=plane_controls_visible)   # Show plane buttons
-            )
+            try:
+                stats, height_plot, detailed_plot, voxel_3d_plot, voxels, voxel_html_path = voxelize_mesh(mesh_path, resolution, method, use_gpu)
+                
+                # Check if voxelization was successful
+                if voxels is None:
+                    error_msg = stats.get('error', 'Unknown voxelization error') if isinstance(stats, dict) else 'Voxelization failed'
+                    raise gr.Error(f'Voxelization failed: {error_msg}')
+                
+                print(f'[GRADIO] Voxelization completed successfully. Voxel shape: {voxels.shape}, occupied: {voxels.sum()}')
+                
+                # Update visibility of plots
+                height_visible = height_plot is not None
+                detailed_visible = detailed_plot is not None
+                voxel_3d_visible = voxel_3d_plot is not None
+                
+                # No interactive HTML plot - just static visualization with rotation controls
+                interactive_plot_html = ""
+                interactive_visible = False
+                
+                # Show plane controls for static plots (both PyVista and matplotlib)
+                plane_controls_visible = voxels is not None and voxel_3d_plot is not None
+                
+                # Show download button if HTML file is available
+                download_visible = voxel_html_path is not None
+                
+                # Show external viewer button if PyVista is available and we have voxels
+                external_viewer_visible = PYVISTA_AVAILABLE and voxels is not None
+                
+                print(f'[GRADIO] UI updates - height_visible: {height_visible}, detailed_visible: {detailed_visible}, voxel_3d_visible: {voxel_3d_visible}')
+                print(f'[GRADIO] UI updates - plane_controls_visible: {plane_controls_visible}, external_viewer_visible: {external_viewer_visible}')
+                
+                return (
+                    stats,  # → voxel_stats
+                    gr.update(value=height_plot, visible=height_visible),  # → height_slices_plot
+                    gr.update(value=detailed_plot, visible=detailed_visible),  # → detailed_plot
+                    gr.update(value=interactive_plot_html, visible=interactive_visible),  # → voxel_interactive_plot
+                    gr.update(value=voxel_3d_plot, visible=voxel_3d_visible and not interactive_visible),  # → voxel_3d_plot
+                    gr.update(visible=external_viewer_visible),  # → external_viewer_btn (show/hide button)
+                    gr.update(visible=False, value=""),  # → external_viewer_status (reset status)
+                    voxels,  # → current_voxels (FIXED: store voxel data in state)
+                    gr.update(visible=plane_controls_visible),  # → plane_xy_btn (show button)
+                    gr.update(visible=plane_controls_visible),  # → plane_yz_btn (show button)
+                    gr.update(visible=plane_controls_visible)   # → plane_xz_btn (show button)
+                )
+                
+            except Exception as e:
+                print(f'[GRADIO] Voxelization error: {e}')
+                import traceback
+                traceback.print_exc()
+                raise gr.Error(f'Voxelization failed: {str(e)}')
 
         voxelize_btn.click(
             lambda: gr.update(selected='voxelization_panel'),
@@ -974,28 +991,44 @@ def build_app():
         ).then(
             on_voxelize_click,
             inputs=[mesh_file_upload, file_export, voxel_resolution, voxel_method, use_gpu_voxel],
-            outputs=[voxel_stats, height_slices_plot, detailed_plot, voxel_interactive_plot, voxel_3d_plot, external_viewer_btn, external_viewer_status, current_voxels, voxel_plane_controls, voxel_plane_buttons]
+            outputs=[voxel_stats, height_slices_plot, detailed_plot, voxel_interactive_plot, voxel_3d_plot, external_viewer_btn, external_viewer_status, current_voxels, plane_xy_btn, plane_yz_btn, plane_xz_btn]
         )
         
         # Plane view button event handlers
         def on_plane_click(voxels, plane):
+            print(f"[PLANE_VIEW] {plane} button clicked. Voxels type: {type(voxels)}, is None: {voxels is None}")
+            if voxels is not None:
+                print(f"[PLANE_VIEW] Voxel shape: {voxels.shape}, occupied: {voxels.sum()}")
+            
             if voxels is None:
-                return gr.update(), gr.update()
-            plane_view = get_plane_view(voxels, plane) 
-            # Update button variants to show which is selected
-            xy_variant = "primary" if plane == "XY" else "secondary"
-            yz_variant = "primary" if plane == "YZ" else "secondary"
-            xz_variant = "primary" if plane == "XZ" else "secondary"
-            return (
-                gr.update(value=plane_view) if plane_view is not None else gr.update(),
-                plane  # Update the selected plane state
-            )
+                print(f"[PLANE_VIEW] No voxel data, returning empty updates")
+                return gr.update(), gr.update(), plane
+                
+            try:
+                # Generate height slices for the selected plane orientation
+                height_slices = get_height_slices_for_plane(voxels, plane)
+                print(f"[PLANE_VIEW] Generated {plane} height slices. Result type: {type(height_slices)}, is None: {height_slices is None}")
+                
+                # Skip 3D plot regeneration during plane switching to avoid PyVista threading issues
+                # The 3D plot will remain the same as the original voxelization
+                print(f"[PLANE_VIEW] Skipping 3D plot regeneration for {plane} plane to avoid segfault")
+                
+                return (
+                    gr.update(),  # Keep existing 3D voxel plot (don't regenerate)
+                    gr.update(value=height_slices) if height_slices is not None else gr.update(),  # Update height slices
+                    plane  # Update the selected plane state
+                )
+            except Exception as e:
+                print(f"[PLANE_VIEW] Error generating {plane} plane view: {e}")
+                import traceback
+                traceback.print_exc()
+                return gr.update(), gr.update(), plane
         
         # Connect plane view buttons
         plane_xy_btn.click(
             lambda voxels: on_plane_click(voxels, 'XY'),
             inputs=[current_voxels],
-            outputs=[voxel_3d_plot, selected_plane]
+            outputs=[voxel_3d_plot, height_slices_plot, selected_plane]
         ).then(
             lambda: (gr.update(variant="primary"), gr.update(variant="secondary"), gr.update(variant="secondary")),
             outputs=[plane_xy_btn, plane_yz_btn, plane_xz_btn]
@@ -1004,7 +1037,7 @@ def build_app():
         plane_yz_btn.click(
             lambda voxels: on_plane_click(voxels, 'YZ'),
             inputs=[current_voxels],
-            outputs=[voxel_3d_plot, selected_plane]
+            outputs=[voxel_3d_plot, height_slices_plot, selected_plane]
         ).then(
             lambda: (gr.update(variant="secondary"), gr.update(variant="primary"), gr.update(variant="secondary")),
             outputs=[plane_xy_btn, plane_yz_btn, plane_xz_btn]
@@ -1013,7 +1046,7 @@ def build_app():
         plane_xz_btn.click(
             lambda voxels: on_plane_click(voxels, 'XZ'),
             inputs=[current_voxels],
-            outputs=[voxel_3d_plot, selected_plane]
+            outputs=[voxel_3d_plot, height_slices_plot, selected_plane]
         ).then(
             lambda: (gr.update(variant="secondary"), gr.update(variant="secondary"), gr.update(variant="primary")),
             outputs=[plane_xy_btn, plane_yz_btn, plane_xz_btn]
@@ -1021,6 +1054,9 @@ def build_app():
         
         # External viewer button event handler
         def on_external_viewer_click(voxels):
+            print(f"[EXTERNAL_VIEWER] Button clicked. Voxels type: {type(voxels)}, is None: {voxels is None}")
+            if voxels is not None:
+                print(f"[EXTERNAL_VIEWER] Voxel shape: {voxels.shape}, occupied: {voxels.sum()}")
             status = launch_external_voxel_viewer(voxels)
             return gr.update(value=status, visible=True)
         
@@ -1035,16 +1071,20 @@ def build_app():
 
         # Minecraft build button event handler
         def on_minecraft_build_click(voxels, scale, block_type, delay, base_plane):
+            print(f"[MINECRAFT] Build button clicked. Voxels type: {type(voxels)}, is None: {voxels is None}")
+            if voxels is not None:
+                print(f"[MINECRAFT] Voxel shape: {voxels.shape}, occupied: {voxels.sum()}")
+            
             if not MINECRAFT_AVAILABLE:
                 return gr.update(value="❌ Minecraft Pi API not available. Install with: pip install mcpi", visible=True)
             
             if voxels is None:
-                return gr.update(value="❌ No voxel data available. Please generate voxels first.", visible=True)
+                return gr.update(value="❌ No voxel data available.\n\n🔧 To fix this:\n1. Click 'Generate Voxels' button first\n2. Wait for voxelization to complete\n3. Make sure no errors occurred during voxelization\n4. Then try building in Minecraft again", visible=True)
             
             # Safety checks
             total_voxels = int(voxels.sum())
             if total_voxels == 0:
-                return gr.update(value="❌ No occupied voxels found in the data.", visible=True)
+                return gr.update(value="❌ No occupied voxels found in the data.\n\n🔧 This might happen if:\n• The mesh file was empty\n• Voxel resolution is too low\n• The mesh is very small compared to the voxel grid", visible=True)
             
             total_blocks = total_voxels * (scale ** 3)
             if total_blocks > 10000000:
@@ -1056,6 +1096,7 @@ def build_app():
                 )
             
             # Use the robust builder with selected plane
+            print(f"[MINECRAFT] Starting build with {total_voxels} voxels, scale {scale}, base plane {base_plane}")
             status = build_voxels_in_minecraft_robust(voxels, scale, block_type, delay, base_plane)
             return gr.update(value=status, visible=True)
 

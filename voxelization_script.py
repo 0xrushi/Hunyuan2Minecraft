@@ -6,6 +6,7 @@ import trimesh
 import matplotlib.pyplot as plt
 import time
 from typing import Optional, Tuple
+import PIL
 
 # PyTorch imports
 import torch
@@ -360,7 +361,6 @@ def plot_all_height_slices(voxels: np.ndarray, title: str = "Voxel Grid",
         plt.close()
         
         # Convert to numpy array
-        import PIL.Image
         img = PIL.Image.open(buf)
         return np.array(img)
         
@@ -425,7 +425,6 @@ def plot_height_slices_detailed(voxels: np.ndarray, title: str = "Voxel Grid"):
         plt.close()
         
         # Convert to numpy array
-        import PIL.Image
         img = PIL.Image.open(buf)
         return np.array(img)
         
