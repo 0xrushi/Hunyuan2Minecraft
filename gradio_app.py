@@ -52,7 +52,7 @@ try:
     from voxel_utils import (
         VOXELIZATION_AVAILABLE, PYVISTA_AVAILABLE, MINECRAFT_AVAILABLE,
         TORCH_VOXEL_AVAILABLE, voxel_device,
-        voxelize_mesh, create_pyvista_voxel_plot, create_3d_voxel_plot,
+        voxelize_mesh, create_pyvista_voxel_plot,
         create_standalone_html_voxel_plot, get_plane_view, reorient_voxels_for_plane,
         launch_external_voxel_viewer, build_voxels_in_minecraft_robust,
         save_voxel_matrix_to_txt
