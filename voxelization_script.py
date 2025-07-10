@@ -8,20 +8,14 @@ import time
 from typing import Optional, Tuple
 
 # PyTorch imports
-try:
-    import torch
-    import torch.nn.functional as F
-    TORCH_AVAILABLE = True
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"[INFO] PyTorch detected - Using device: {device}")
-    if torch.cuda.is_available():
-        print(f"[INFO] GPU: {torch.cuda.get_device_name()}")
-        print(f"[INFO] CUDA version: {torch.version.cuda}")
-        print(f"[INFO] GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
-except ImportError:
-    print("[WARNING] PyTorch not available")
-    TORCH_AVAILABLE = False
-    device = 'cpu'
+import torch
+import torch.nn.functional as F
+
+device = torch.device('cuda')
+print(f"[INFO] Using device: {device}")
+print(f"[INFO] GPU: {torch.cuda.get_device_name()}")
+print(f"[INFO] CUDA version: {torch.version.cuda}")
+print(f"[INFO] GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
 
 def point_in_triangle_vectorized(points, v0, v1, v2):
     """
@@ -216,12 +210,9 @@ def pytorch_mesh_to_voxels(mesh_path: str, resolution: int = 32,
     """
     start_time = time.time()
     
-    # Determine device
-    if use_gpu and TORCH_AVAILABLE and torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
-        print("[INFO] Using CPU processing")
+    # Always use CUDA device
+    device = 'cuda'
+    print(f"[INFO] Using CUDA processing")
     
     # Load mesh
     print(f"[INFO] Loading mesh: {mesh_path}")
@@ -493,30 +484,24 @@ def benchmark_methods(mesh_path: str, resolution: int = 128):
     methods = []
     times = []
     
-    if TORCH_AVAILABLE and torch.cuda.is_available():
-        # GPU Fast method
-        print("\n--- PyTorch GPU Fast ---")
-        start = time.time()
-        voxels_fast = pytorch_mesh_to_voxels(mesh_path, resolution, 'fast', True)
-        time_fast = time.time() - start
-        methods.append("PyTorch GPU Fast")
-        times.append(time_fast)
-        
-        # GPU Accurate method
-        print("\n--- PyTorch GPU Accurate ---")
-        start = time.time()
-        voxels_accurate = pytorch_mesh_to_voxels(mesh_path, resolution, 'accurate', True)
-        time_accurate = time.time() - start
-        methods.append("PyTorch GPU Accurate")
-        times.append(time_accurate)
+    device = 'cuda'
+    print(f"[INFO] Using CUDA for benchmarking")
     
-    # CPU fallback
-    print("\n--- CPU Fallback ---")
+    # GPU Fast method
+    print("\n--- PyTorch GPU Fast ---")
     start = time.time()
-    voxels_cpu = pytorch_mesh_to_voxels(mesh_path, resolution, 'trimesh', False)
-    time_cpu = time.time() - start
-    methods.append("CPU Trimesh")
-    times.append(time_cpu)
+    voxels_fast = pytorch_mesh_to_voxels(mesh_path, resolution, 'fast', True)
+    time_fast = time.time() - start
+    methods.append("PyTorch GPU Fast")
+    times.append(time_fast)
+    
+    # GPU Accurate method
+    print("\n--- PyTorch GPU Accurate ---")
+    start = time.time()
+    voxels_accurate = pytorch_mesh_to_voxels(mesh_path, resolution, 'accurate', True)
+    time_accurate = time.time() - start
+    methods.append("PyTorch GPU Accurate")
+    times.append(time_accurate)
     
     # Print results
     print(f"\n=== Benchmark Results (Resolution: {resolution}³) ===")
@@ -527,11 +512,8 @@ def benchmark_methods(mesh_path: str, resolution: int = 128):
         speedup = max(times) / min(times)
         print(f"Best speedup: {speedup:.1f}x")
     
-    # Return the best result for visualization
-    if TORCH_AVAILABLE and torch.cuda.is_available():
-        return voxels_accurate if 'voxels_accurate' in locals() else voxels_fast
-    else:
-        return voxels_cpu
+    # Return the accurate result for visualization
+    return voxels_accurate
 
 # Main execution
 if __name__ == "__main__":
@@ -539,22 +521,13 @@ if __name__ == "__main__":
     resolution = 128
     
     print("=== PyTorch GPU-Optimized Voxelization ===")
-    print(f"PyTorch Available: {TORCH_AVAILABLE}")
-    if TORCH_AVAILABLE:
-        print(f"CUDA Available: {torch.cuda.is_available()}")
-        if torch.cuda.is_available():
-            print(f"GPU: {torch.cuda.get_device_name()}")
+    print(f"CUDA Available: {torch.cuda.is_available()}")
+    print(f"GPU: {torch.cuda.get_device_name()}")
     
     try:
-        if TORCH_AVAILABLE and torch.cuda.is_available():
-            # Run benchmark
-            voxels = benchmark_methods(mesh_file, resolution)
-            plot_all_height_slices(voxels, "PyTorch GPU Voxelization")
-        else:
-            # CPU fallback
-            print("\n--- CPU Version ---")
-            voxels = pytorch_mesh_to_voxels(mesh_file, resolution, 'trimesh', False)
-            plot_all_height_slices(voxels, "CPU Voxelization")
+        # Run benchmark
+        voxels = benchmark_methods(mesh_file, resolution)
+        plot_all_height_slices(voxels, "PyTorch GPU Voxelization")
             
     except Exception as e:
         print(f"[ERROR] {e}")
