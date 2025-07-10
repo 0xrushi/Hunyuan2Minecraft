@@ -21,31 +21,23 @@ import trimesh
 import tempfile
 from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
+import pickle
+import io
+import PIL.Image
+import torch
+import torch.nn.functional as F
+TORCH_VOXEL_AVAILABLE = True
+voxel_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"[INFO] PyTorch available for voxelization - Using device: {voxel_device}")
 
-# PyTorch imports and setup
-VOXELIZATION_AVAILABLE = True
-try:
-    import torch
-    import torch.nn.functional as F
-    TORCH_VOXEL_AVAILABLE = True
-    voxel_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"[INFO] PyTorch available for voxelization - Using device: {voxel_device}")
-except ImportError:
-    print("[WARNING] PyTorch not available for advanced voxelization")
-    TORCH_VOXEL_AVAILABLE = False
-    voxel_device = 'cpu'
 
 # PyVista for interactive 3D visualization
-try:
-    import pyvista as pv
-    # Set PyVista to work in headless mode for server environments
-    pv.set_plot_theme("document")
-    pv.OFF_SCREEN = True  # Enable off-screen rendering for server
-    PYVISTA_AVAILABLE = True
-    print("[INFO] PyVista available for interactive 3D visualization")
-except ImportError:
-    print("[WARNING] PyVista not available. Install with: pip install pyvista")
-    PYVISTA_AVAILABLE = False
+import pyvista as pv
+# Set PyVista to work in headless mode for server environments
+pv.set_plot_theme("document")
+pv.OFF_SCREEN = True  # Enable off-screen rendering for server
+PYVISTA_AVAILABLE = True
+print("[INFO] PyVista available for interactive 3D visualization")
 
 # Minecraft Pi for voxel building
 try:
@@ -318,7 +310,7 @@ def pytorch_voxelize_solid_fill(vertices, faces, resolution, device='cuda'):
     return voxel_grid.cpu().numpy()
 
 
-def pytorch_mesh_to_voxels_fixed(mesh_path: str, resolution: int = 32, 
+def pytorch_mesh_to_voxels(mesh_path: str, resolution: int = 32, 
                                 method: str = 'solid', use_gpu: bool = True) -> np.ndarray:
     """
     Fixed mesh to voxel conversion with multiple methods
@@ -334,12 +326,8 @@ def pytorch_mesh_to_voxels_fixed(mesh_path: str, resolution: int = 32,
     """
     start_time = time.time()
     
-    # Determine device
-    if use_gpu and torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
-        print("[INFO] Using CPU for voxelization")
+    device = voxel_device
+    print(f"[INFO] Using {device} for voxelization")
     
     # Load mesh
     print(f"[INFO] Loading mesh: {mesh_path}")
@@ -501,8 +489,6 @@ def save_voxel_matrix_to_txt(voxels, mesh_path, resolution, method):
                         occupied = 1 if voxels[x, y, z] else 0
                         f.write(f"{x} {y} {z} {occupied}\n")
         
-        # Save as pickle file for easy loading
-        import pickle
         metadata = {
             'original_mesh': mesh_path,
             'resolution': resolution,
@@ -544,8 +530,7 @@ def voxelize_mesh(mesh_path, resolution=64, method='solid', use_gpu=True):
         return error_stats, None, None, None, None, None
     
     try:
-        # Use the fixed voxelization function
-        voxels = pytorch_mesh_to_voxels_fixed(mesh_path, resolution, method, use_gpu)
+        voxels = pytorch_mesh_to_voxels(mesh_path, resolution, method, True)
         
         # Save voxel matrix to text file for debugging
         save_voxel_matrix_to_txt(voxels, mesh_path, resolution, method)
@@ -561,7 +546,7 @@ def voxelize_mesh(mesh_path, resolution=64, method='solid', use_gpu=True):
             "occupied_voxels": int(occupied_voxels),
             "fill_ratio": f"{fill_ratio:.2f}%",
             "method": method,
-            "device": "GPU" if use_gpu else "CPU"
+            "device": "GPU"
         }
         
         # Create height slices plot
@@ -595,15 +580,10 @@ def voxelize_mesh(mesh_path, resolution=64, method='solid', use_gpu=True):
                 
                 plt.tight_layout()
                 
-                # Save to numpy array
-                import io
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
                 buf.seek(0)
                 plt.close()
-                
-                # Convert to numpy array
-                import PIL.Image
                 img = PIL.Image.open(buf)
                 height_slices_plot = np.array(img)
             else:
@@ -649,14 +629,12 @@ def voxelize_mesh(mesh_path, resolution=64, method='solid', use_gpu=True):
                 
                 plt.tight_layout()
                 
-                # Save to numpy array
                 import io
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
                 buf.seek(0)
                 plt.close()
                 
-                # Convert to numpy array
                 import PIL.Image
                 img = PIL.Image.open(buf)
                 detailed_plot = np.array(img)
@@ -667,32 +645,18 @@ def voxelize_mesh(mesh_path, resolution=64, method='solid', use_gpu=True):
             print(f"Error creating detailed plot: {e}")
             detailed_plot = None
         
-        # Create 3D voxel visualization
+        # Create 3D voxel visualization using PyVista
         voxel_3d_plot = None
         voxel_html_path = None
         
         try:
-            if PYVISTA_AVAILABLE:
-                # Try PyVista for high-quality static visualization
-                pyvista_result = create_pyvista_voxel_plot(voxels, save_as_html=False)
-                if pyvista_result is not None:
-                    voxel_3d_plot = pyvista_result
-                    print(f"[INFO] Created high-quality PyVista plot")
-                else:
-                    # Fallback to matplotlib
-                    voxel_3d_plot = create_3d_voxel_plot(voxels, elev=20, azim=45)
-                    print(f"[INFO] PyVista failed, using matplotlib fallback")
-            else:
-                # Use matplotlib if PyVista not available
-                voxel_3d_plot = create_3d_voxel_plot(voxels, elev=20, azim=45)
-                print(f"[INFO] Using matplotlib (PyVista not available)")
+            # Use PyVista for high-quality visualization
+            voxel_3d_plot = create_pyvista_voxel_plot(voxels, save_as_html=False)
+            if voxel_3d_plot is not None:
+                print(f"[INFO] Created PyVista plot")
         except Exception as e:
             print(f"Error creating 3D voxel plot: {e}")
-            # Final fallback to matplotlib
-            try:
-                voxel_3d_plot = create_3d_voxel_plot(voxels, elev=20, azim=45)
-            except:
-                voxel_3d_plot = None
+            voxel_3d_plot = None
         
         return stats, height_slices_plot, detailed_plot, voxel_3d_plot, voxels, voxel_html_path
         
@@ -711,8 +675,6 @@ def create_standalone_html_voxel_plot(voxels):
     Returns:
         str: Path to standalone HTML file or None if failed
     """
-    if not PYVISTA_AVAILABLE:
-        return None
     
     try:
         if not voxels.any():
@@ -841,9 +803,6 @@ def create_pyvista_voxel_plot(voxels, save_as_html=False):
     Returns:
         numpy.ndarray: Image array or None if failed
     """
-    if not PYVISTA_AVAILABLE:
-        print("[WARNING] PyVista not available, falling back to matplotlib")
-        return None
     
     try:
         if not voxels.any():
@@ -936,132 +895,7 @@ def create_pyvista_voxel_plot(voxels, save_as_html=False):
         return None
 
 
-def create_3d_voxel_plot(voxels, elev=20, azim=45):
-    """
-    Create a true 3D voxel plot showing actual voxel cubes using matplotlib.
-    
-    Args:
-        voxels: 3D boolean array of voxels
-        elev: Elevation angle for 3D view (degrees)
-        azim: Azimuth angle for 3D view (degrees)
-    
-    Returns:
-        numpy array: Image of the 3D voxel plot
-    """
-    try:
-        import matplotlib
-        matplotlib.use('Agg')  # Use non-interactive backend
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
-        import matplotlib.colors as mcolors
-        
-        if not voxels.any():
-            # No occupied voxels
-            fig, ax = plt.subplots(figsize=(10, 8))
-            ax.text(0.5, 0.5, 'No occupied voxels found', 
-                   ha='center', va='center', transform=ax.transAxes, fontsize=16)
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.set_xticks([])
-            ax.set_yticks([])
-        else:
-            # Create 3D voxel plot
-            fig = plt.figure(figsize=(12, 10))
-            ax = fig.add_subplot(111, projection='3d')
-            
-            # For performance, downsample if resolution is too high
-            original_shape = voxels.shape
-            max_resolution = 64  # Maximum resolution for good performance
-            
-            if any(dim > max_resolution for dim in voxels.shape):
-                # Downsample the voxel grid
-                downsample_factor = max(voxels.shape) // max_resolution
-                if downsample_factor > 1:
-                    # Simple downsampling by taking every nth voxel
-                    downsampled_voxels = voxels[::downsample_factor, ::downsample_factor, ::downsample_factor]
-                    print(f"[INFO] Downsampled voxel grid from {original_shape} to {downsampled_voxels.shape} for 3D visualization")
-                    voxels_to_plot = downsampled_voxels
-                else:
-                    voxels_to_plot = voxels
-            else:
-                voxels_to_plot = voxels
-            
-            # Create colors for the voxels - gradient based on height (Y-axis)
-            colors = np.empty(voxels_to_plot.shape + (4,), dtype=float)
-            
-            # Get occupied voxel coordinates for coloring
-            occupied_coords = np.where(voxels_to_plot)
-            if len(occupied_coords[0]) > 0:
-                # Create a colormap based on height (Y coordinate)
-                y_coords = occupied_coords[1]
-                y_min, y_max = y_coords.min(), y_coords.max()
-                
-                # Normalize Y coordinates to [0, 1] for colormap
-                if y_max > y_min:
-                    y_normalized = (y_coords - y_min) / (y_max - y_min)
-                else:
-                    y_normalized = np.ones_like(y_coords) * 0.5
-                
-                # Use a colormap (viridis)
-                cmap = plt.cm.viridis
-                
-                # Set colors for all voxels to transparent first
-                colors[:] = [0, 0, 0, 0]  # Transparent
-                
-                # Set colors for occupied voxels
-                for i, (x, y, z) in enumerate(zip(*occupied_coords)):
-                    color = cmap(y_normalized[i])
-                    colors[x, y, z] = color
-            
-            # Plot the voxels
-            ax.voxels(voxels_to_plot, facecolors=colors, alpha=0.7)
-            
-            # Set labels and title
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
-            
-            total_voxels = voxels.sum()
-            shown_voxels = voxels_to_plot.sum()
-            if original_shape != voxels_to_plot.shape:
-                ax.set_title(f'3D Voxel Visualization\n({shown_voxels} voxels shown, {total_voxels} total)\nDownsampled for performance')
-            else:
-                ax.set_title(f'3D Voxel Visualization\n({total_voxels} voxels)')
-            
-            # Set equal aspect ratio
-            ax.set_box_aspect([1, 1, 1])
-            
-            # Rotate view for better visualization
-            ax.view_init(elev=elev, azim=azim)
-            
-            # Add a colorbar
-            if len(occupied_coords[0]) > 0:
-                # Create a dummy mappable for the colorbar
-                sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, 
-                                         norm=plt.Normalize(vmin=0, vmax=voxels_to_plot.shape[1]-1))
-                sm.set_array([])
-                cbar = plt.colorbar(sm, ax=ax, shrink=0.6, aspect=20)
-                cbar.set_label('Height (Y)')
-        
-        plt.tight_layout()
-        
-        # Save to numpy array
-        import io
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-        buf.seek(0)
-        plt.close()
-        
-        # Convert to numpy array
-        import PIL.Image
-        img = PIL.Image.open(buf)
-        return np.array(img)
-        
-    except Exception as e:
-        print(f"Error creating 3D voxel plot: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+
 
 
 def get_plane_view(voxels, plane):
@@ -1165,7 +999,7 @@ def start_pyvista_external_viewer(voxels):
     Start PyVista in an external window with full interactivity.
     This runs in a separate process to avoid threading issues.
     """
-    if not PYVISTA_AVAILABLE or voxels is None:
+    if voxels is None:
         return
     
     try:
@@ -1525,22 +1359,3 @@ def build_voxels_in_minecraft_robust(voxels, scale=1, block_type='STONE', delay=
     plane_info = f"\n🎯 Built using {base_plane} plane as base"
     return result + plane_info
 
-
-# Export all the main functions for easy importing
-__all__ = [
-    'VOXELIZATION_AVAILABLE',
-    'PYVISTA_AVAILABLE', 
-    'MINECRAFT_AVAILABLE',
-    'TORCH_VOXEL_AVAILABLE',
-    'voxel_device',
-    'pytorch_mesh_to_voxels_fixed',
-    'voxelize_mesh',
-    'create_pyvista_voxel_plot',
-    'create_3d_voxel_plot',
-    'create_standalone_html_voxel_plot',
-    'get_plane_view',
-    'reorient_voxels_for_plane',
-    'launch_external_voxel_viewer',
-    'build_voxels_in_minecraft_robust',
-    'save_voxel_matrix_to_txt'
-] 
