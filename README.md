@@ -14,7 +14,7 @@ Turn stunning real-world or AI-generated images into Minecraft builds — powere
 Minecraft agents are getting better at chopping trees and mining but when it comes to building **realistic**, **beautiful**, and **creative** structures, they fail.
 
 Inspired by projects like [Claude building the Eiffel Tower (poorly 😬)](https://www.reddit.com/r/mcp/comments/1jgicku/claudes_building_the_eiffel_tower_in_realtime/), this project bridges the gap between **vision models** and **blocky reality**.
-![Screenshot 2025-07-08 044704](https://github.com/user-attachments/assets/be7f1b4b-6659-4d13-a753-7cdf7ea715c1)
+<img width="760" height="443" alt="image" src="https://github.com/user-attachments/assets/930ecda2-7068-41a9-adc6-052a8050d86b" />
 
 
 ---
