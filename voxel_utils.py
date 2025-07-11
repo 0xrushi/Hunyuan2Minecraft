@@ -26,7 +26,6 @@ import io
 import PIL.Image
 import torch
 import torch.nn.functional as F
-TORCH_VOXEL_AVAILABLE = True
 voxel_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"[INFO] PyTorch available for voxelization - Using device: {voxel_device}")
 
@@ -36,19 +35,11 @@ import pyvista as pv
 # Set PyVista to work in headless mode for server environments
 pv.set_plot_theme("document")
 pv.OFF_SCREEN = True  # Enable off-screen rendering for server
-PYVISTA_AVAILABLE = True
 print("[INFO] PyVista available for interactive 3D visualization")
 
 # Minecraft Pi for voxel building
-try:
-    from mcpi.minecraft import Minecraft
-    from mcpi import block
-    MINECRAFT_AVAILABLE = True
-    print("[INFO] Minecraft Pi API available for voxel building")
-except ImportError:
-    print("[WARNING] Minecraft Pi API not available. Install with: pip install mcpi")
-    MINECRAFT_AVAILABLE = False
-
+from mcpi.minecraft import Minecraft
+from mcpi import block
 
 def ray_triangle_intersection_vectorized(ray_origins, ray_dirs, v0, v1, v2):
     """

@@ -50,8 +50,7 @@ import PIL.Image
 # Import voxelization utilities
 try:
     from voxel_utils import (
-        PYVISTA_AVAILABLE, MINECRAFT_AVAILABLE,
-        TORCH_VOXEL_AVAILABLE, voxel_device,
+        voxel_device,
         voxelize_mesh, create_pyvista_voxel_plot,
         create_standalone_html_voxel_plot, get_plane_view, get_height_slices_for_plane, reorient_voxels_for_plane,
         launch_external_voxel_viewer, build_voxels_in_minecraft_robust,
@@ -60,9 +59,6 @@ try:
     print("[INFO] Voxel utilities imported successfully")
 except ImportError as e:
     print(f"[WARNING] Failed to import voxel utilities: {e}")
-    PYVISTA_AVAILABLE = False
-    MINECRAFT_AVAILABLE = False
-    TORCH_VOXEL_AVAILABLE = False
     voxel_device = 'cpu'
 
 from hy3dshape.utils import logger
@@ -729,7 +725,7 @@ def build_app():
                                 </div>
                                 """)
                                 
-                                minecraft_build_btn = gr.Button('🏗️ Build in Minecraft', variant='primary', visible=MINECRAFT_AVAILABLE)
+                                minecraft_build_btn = gr.Button('🏗️ Build in Minecraft', variant='primary', visible=True)
                             
                             with gr.Column(scale=2):
                                 voxel_stats = gr.Json({}, label='Voxel Statistics')
@@ -960,7 +956,7 @@ def build_app():
                 download_visible = voxel_html_path is not None
                 
                 # Show external viewer button if PyVista is available and we have voxels
-                external_viewer_visible = PYVISTA_AVAILABLE and voxels is not None
+                external_viewer_visible = voxels is not None
                 
                 print(f'[GRADIO] UI updates - height_visible: {height_visible}, detailed_visible: {detailed_visible}, voxel_3d_visible: {voxel_3d_visible}')
                 print(f'[GRADIO] UI updates - plane_controls_visible: {plane_controls_visible}, external_viewer_visible: {external_viewer_visible}')
@@ -1074,9 +1070,6 @@ def build_app():
             print(f"[MINECRAFT] Build button clicked. Voxels type: {type(voxels)}, is None: {voxels is None}")
             if voxels is not None:
                 print(f"[MINECRAFT] Voxel shape: {voxels.shape}, occupied: {voxels.sum()}")
-            
-            if not MINECRAFT_AVAILABLE:
-                return gr.update(value="❌ Minecraft Pi API not available. Install with: pip install mcpi", visible=True)
             
             if voxels is None:
                 return gr.update(value="❌ No voxel data available.\n\n🔧 To fix this:\n1. Click 'Generate Voxels' button first\n2. Wait for voxelization to complete\n3. Make sure no errors occurred during voxelization\n4. Then try building in Minecraft again", visible=True)
